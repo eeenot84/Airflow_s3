@@ -2,9 +2,9 @@ version: "3.8"
 
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:2.9.1
+  build: .
+  image: my-airflow:latest
   environment:
-    &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: UTC
@@ -13,10 +13,9 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW_UID: "50000"
-    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-amazon"
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./scripts:/opt/airflow/scripts   # добавим для скриптов создания пользователя
+    - ./scripts:/opt/airflow/scripts   # для скриптов создания пользователя
 
 services:
   postgres:

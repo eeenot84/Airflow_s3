@@ -1,6 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.hooks.base import BaseHook
 from datetime import datetime, timedelta
 import requests
 import json
@@ -13,48 +13,56 @@ default_args = {
     'retry_delay': timedelta(minutes=1),
 }
 
-S3_CONN_ID = 'my_s3_conn'
 BUCKET_NAME = 'dev'
 OBJECT_KEY = 'data/api_data.json'
+MINIO_BASE_URL = 'http://minio:9000'  # Замени на свой URL MinIO или S3-совместимого сервиса
 
-def fetch_api_data(**context):
+class SimpleS3Hook(BaseHook):
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url.rstrip('/')
+
+    def upload_bytes(self, bucket_name, object_key, data_bytes, content_type='application/octet-stream'):
+        url = f"{self.base_url}/{bucket_name}/{object_key}"
+        headers = {'Content-Type': content_type}
+        response = requests.put(url, data=data_bytes, headers=headers)
+        response.raise_for_status()
+        self.log.info(f"Uploaded to {url} with status {response.status_code}")
+        return response.status_code
+
+def fetch_api_data(**kwargs):
+    ti = kwargs['ti']
     url = 'https://jsonplaceholder.typicode.com/todos/1'
     response = requests.get(url)
     response.raise_for_status()
     data = response.json()
-    context['ti'].xcom_push(key='api_data', value=data)
+    ti.xcom_push(key='api_data', value=data)
 
-def upload_to_s3(**context):
-    data = context['ti'].xcom_pull(key='api_data', task_ids='fetch_api_data')
+def upload_to_s3_without_aws(**kwargs):
+    ti = kwargs['ti']
+    data = ti.xcom_pull(key='api_data', task_ids='fetch_api_data')
     json_bytes = json.dumps(data).encode('utf-8')
 
-    s3_hook = S3Hook(aws_conn_id=S3_CONN_ID)
-    s3_hook.load_bytes(
-        bytes_data=json_bytes,
-        key=OBJECT_KEY,
-        bucket_name=BUCKET_NAME,
-        replace=True,
-    )
-    print(f"Файл загружен в S3: s3://{BUCKET_NAME}/{OBJECT_KEY}")
+    hook = SimpleS3Hook(base_url=MINIO_BASE_URL)
+    hook.upload_bytes(bucket_name=BUCKET_NAME, object_key=OBJECT_KEY, data_bytes=json_bytes, content_type='application/json')
 
 with DAG(
-    'api_to_s3_with_hook',
+    dag_id='api_to_minio_without_aws',
     default_args=default_args,
-    description='DAG тянет данные из API и загружает в S3 через S3Hook',
+    description='DAG получает данные из API и загружает в MinIO без AWS SDK',
     schedule_interval='@hourly',
     catchup=False,
+    tags=['example'],
 ) as dag:
 
     t1 = PythonOperator(
         task_id='fetch_api_data',
         python_callable=fetch_api_data,
-        provide_context=True,
     )
 
     t2 = PythonOperator(
-        task_id='upload_to_s3',
-        python_callable=upload_to_s3,
-        provide_context=True,
+        task_id='upload_to_s3_without_aws',
+        python_callable=upload_to_s3_without_aws,
     )
 
     t1 >> t2

@@ -1,13 +1,15 @@
 FROM apache/airflow:2.9.1
 
-# Переключаемся на airflow-пользователя сразу, как требует Airflow-документация
+USER root
+RUN apt-get update && apt-get install -y python3-distutils
 USER airflow
 
-# Копируем requirements.txt внутрь контейнера
+# Обновляем pip уже под airflow пользователем
+RUN python3 -m pip install --upgrade pip
+
 COPY requirements.txt /requirements.txt
 
-# Устанавливаем зависимости от имени пользователя airflow
 RUN pip install --no-cache-dir -r /requirements.txt
 
-# Копируем DAG-файлы
+
 COPY ./dags/ /opt/airflow/dags/
