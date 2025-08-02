@@ -24,4 +24,4 @@ jobs:
           context: .
           file: ./Dockerfile   # указываем явно Dockerfile в корне
           push: true
-          ttags: ${{ secrets.DOCKER_USERNAME }}/airflow-etl:latest  # замени myapp на имя своего образа
+          tags: ${{ secrets.DOCKER_USERNAME }}/airflow-etl:latest  # замени myapp на имя своего образа
