@@ -9,10 +9,14 @@ x-airflow-common:
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: UTC
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
-    AIRFLOW__API__AUTH_BACKEND: "airflow.api.auth.backend.basic_auth"
+    AIRFLOW__WEBSERVER__AUTHENTICATE: "True"
+    AIRFLOW__WEBSERVER__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
+    AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW_UID: "50000"
+    _PIP_ADDITIONAL_REQUIREMENTS: "apache-airflow-providers-amazon"
   volumes:
     - ./dags:/opt/airflow/dags
+    - ./scripts:/opt/airflow/scripts   # добавим для скриптов создания пользователя
 
 services:
   postgres:
@@ -30,7 +34,10 @@ services:
       - "8080:8080"
     depends_on:
       - postgres
-    command: webserver
+    command: bash -c "\
+      airflow db init && \
+      airflow users create --username airflow --firstname Rinat --lastname Mubinov --role Admin --email rinat@example.com --password airflow123 || true && \
+      airflow webserver"
 
   airflow-scheduler:
     <<: *airflow-common
@@ -38,5 +45,19 @@ services:
       - airflow-webserver
     command: scheduler
 
+  minio:
+    image: minio/minio
+    container_name: minio
+    command: server --console-address ":9001" /data
+    environment:
+      MINIO_ROOT_USER: Rinat
+      MINIO_ROOT_PASSWORD: 8241882418Rinat
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./minio_data:/data
+
 volumes:
   postgres_data:
+  minio_data:
