@@ -13,7 +13,7 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW_UID: "50000"
-    AIRFLOW__WEBSERVER__SECRET_KEY: 'my_super_secret_key'  # <-- здесь поставь свою секретную строку
+    AIRFLOW__WEBSERVER__SECRET_KEY: '9f8b2d74e3c61f7a1d5b2c0e4a6f9b7c3d2e1f0a8b7c6d5e4f3a2b1c0d9e8f7a'  # <-- здесь поставь свою секретную строку
   volumes:
     - ./dags:/opt/airflow/dags
     - ./scripts:/opt/airflow/scripts   # для скриптов создания пользователя
