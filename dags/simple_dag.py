@@ -14,7 +14,7 @@ default_args = {
 }
 
 S3_CONN_ID = 'my_s3_conn'
-BUCKET_NAME = 'my-bucket'
+BUCKET_NAME = 'dev'
 OBJECT_KEY = 'data/api_data.json'
 
 def fetch_api_data(**context):
