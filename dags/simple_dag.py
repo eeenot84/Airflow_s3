@@ -6,66 +6,81 @@ from botocore.client import Config
 from io import BytesIO
 import json
 import requests
+from airflow.utils.dates import days_ago
+from airflow.models import TaskInstance
+import logging
 
+# --- Настройки MinIO ---
+MINIO_ENDPOINT = 'http://minio:9000'
+MINIO_ACCESS_KEY = 'minioadmin'
+MINIO_SECRET_KEY = 'minioadmin'
+BUCKET_NAME = 'dev'
+OBJECT_KEY = 'data/api_data.json'
 
-def fetch_api_data():
-    """Функция для получения данных с API"""
-    url = "https://jsonplaceholder.typicode.com/todos/1"
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
-
-    # Сохраняем данные в XCom
-    return data
-
-
-def upload_to_minio(ti):
-    """Функция для загрузки данных в MinIO"""
-    data = ti.xcom_pull(task_ids="fetch_data_task")
-
-    # Преобразуем данные в байты
-    content = json.dumps(data).encode("utf-8")
-
-    s3 = boto3.client(
-        's3',
-        endpoint_url='http://minio:9000',
-        aws_access_key_id='minioadmin',
-        aws_secret_access_key='minioadmin',
-        config=Config(signature_version='s3v4'),
-        region_name='us-east-1',
-    )
-
-    bucket_name = 'dev'
-    object_key = 'data/api_data.json'
-
-    # Проверяем и создаём бакет, если нужно
-    existing_buckets = [b['Name'] for b in s3.list_buckets()['Buckets']]
-    if bucket_name not in existing_buckets:
-        s3.create_bucket(Bucket=bucket_name)
-
-    # Загрузка файла
-    s3.upload_fileobj(
-        Fileobj=BytesIO(content),
-        Bucket=bucket_name,
-        Key=object_key,
-        ExtraArgs={'ContentType': 'application/json'}
-    )
-
-
+# --- DAG параметры ---
 default_args = {
     'owner': 'airflow',
     'retries': 2,
     'retry_delay': timedelta(minutes=1),
 }
 
-with DAG(
-    dag_id='api_to_minio_without_aws',
-    default_args=default_args,
-    start_date=datetime(2025, 8, 3),
-    schedule_interval='@daily',
-    catchup=False,
-) as dag:
 
+# --- Получение данных из API ---
+def fetch_api_data(ti: TaskInstance) -> None:
+    url = "https://jsonplaceholder.typicode.com/todos/1"
+    logging.info(f"🔍 Запрос данных с {url}")
+
+    response = requests.get(url)
+    response.raise_for_status()
+    data = response.json()
+
+    logging.info("✅ Данные получены, сохраняем в XCom")
+    ti.xcom_push(key='api_data', value=data)
+
+
+# --- Загрузка в MinIO ---
+def upload_to_minio(ti: TaskInstance) -> None:
+    logging.info("📦 Получаем данные из XCom")
+    data = ti.xcom_pull(task_ids='fetch_data_task', key='api_data')
+    content = json.dumps(data).encode("utf-8")
+
+    logging.info("🔗 Подключаемся к MinIO")
+    s3 = boto3.client(
+        's3',
+        endpoint_url=MINIO_ENDPOINT,
+        aws_access_key_id=MINIO_ACCESS_KEY,
+        aws_secret_access_key=MINIO_SECRET_KEY,
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1',
+    )
+
+    # Создаём бакет, если не существует
+    buckets = s3.list_buckets().get('Buckets', [])
+    bucket_names = [b['Name'] for b in buckets]
+    if BUCKET_NAME not in bucket_names:
+        logging.info(f"🪣 Создаём бакет: {BUCKET_NAME}")
+        s3.create_bucket(Bucket=BUCKET_NAME)
+
+    logging.info(f"⬆️ Загружаем объект: {OBJECT_KEY}")
+    s3.upload_fileobj(
+        Fileobj=BytesIO(content),
+        Bucket=BUCKET_NAME,
+        Key=OBJECT_KEY,
+        ExtraArgs={'ContentType': 'application/json'}
+    )
+    logging.info("✅ Загрузка завершена")
+
+
+# --- DAG ---
+with DAG(
+        dag_id='api_to_minio_v2',
+        default_args=default_args,
+        start_date=days_ago(1),
+        schedule_interval='@daily',
+        catchup=False,
+        description='DAG для загрузки данных из API в MinIO',
+        tags=['minio', 'api'],
+) as dag:
     fetch_task = PythonOperator(
         task_id='fetch_data_task',
         python_callable=fetch_api_data,
