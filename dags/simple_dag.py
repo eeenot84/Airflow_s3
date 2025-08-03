@@ -1,66 +1,31 @@
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from datetime import datetime, timedelta
-import requests
-import json
-from requests.auth import HTTPBasicAuth
+import boto3
+from botocore.client import Config
+from io import BytesIO
 
-# --- Константы ---
-MINIO_BASE_URL = 'http://minio:9000'  # URL MinIO
-BUCKET_NAME = 'dev'
-OBJECT_KEY = 'data/api_data.json'
-MINIO_ACCESS_KEY = 'Rinat'
-MINIO_SECRET_KEY = '8241882418Rinat'
-
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'start_date': datetime(2025, 8, 1),
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1),
-}
-
-def fetch_api_data(**kwargs):
-    """Получает данные из API и сохраняет в XCom"""
-    url = 'https://jsonplaceholder.typicode.com/todos/1'
-    response = requests.get(url)
-    response.raise_for_status()
-    data = response.json()
-    kwargs['ti'].xcom_push(key='api_data', value=data)
-
-def upload_to_minio(**kwargs):
-    """Загружает данные в MinIO с использованием requests и HTTP Basic Auth"""
-    ti = kwargs['ti']
-    data = ti.xcom_pull(key='api_data', task_ids='fetch_api_data')
-    json_bytes = json.dumps(data).encode('utf-8')
-
-    url = f"{MINIO_BASE_URL}/{BUCKET_NAME}/{OBJECT_KEY}"
-    headers = {'Content-Type': 'application/json'}
-    auth = HTTPBasicAuth(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
-
-    response = requests.put(url, data=json_bytes, headers=headers, auth=auth)
-    response.raise_for_status()
-
-    print(f"✔️ Uploaded to {url} — Status: {response.status_code}")
-
-# --- DAG ---
-with DAG(
-    dag_id='api_to_minio_without_aws',
-    default_args=default_args,
-    description='Получает данные из API и сохраняет в MinIO напрямую',
-    schedule_interval='@hourly',
-    catchup=False,
-    tags=['minio', 'api', 'requests'],
-) as dag:
-
-    fetch_task = PythonOperator(
-        task_id='fetch_api_data',
-        python_callable=fetch_api_data,
+def upload_to_minio():
+    # Настройки подключения к MinIO
+    s3 = boto3.client(
+        's3',
+        endpoint_url='http://minio:9000',
+        aws_access_key_id='minioadmin',
+        aws_secret_access_key='minioadmin',
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1',
     )
 
-    upload_task = PythonOperator(
-        task_id='upload_to_minio',
-        python_callable=upload_to_minio,
-    )
+    bucket_name = 'dev'
+    object_key = 'data/api_data.json'
+    content = b'{"hello": "world"}'
 
-    fetch_task >> upload_task
+    # Проверка наличия бакета (создать, если нет)
+    existing_buckets = [b['Name'] for b in s3.list_buckets()['Buckets']]
+    if bucket_name not in existing_buckets:
+        s3.create_bucket(Bucket=bucket_name)
+
+    # Загрузка объекта
+    s3.upload_fileobj(
+        Fileobj=BytesIO(content),
+        Bucket=bucket_name,
+        Key=object_key,
+        ExtraArgs={'ContentType': 'application/json'}
+    )
