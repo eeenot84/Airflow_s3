@@ -15,7 +15,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 AIRFLOW_CONN_ID = 'minio_default'
 
 BUCKET_NAME = 'dev'
-OBJECT_KEY = 'data/api_data.json'
+OBJECT_KEY = 'data/geoplugin_json.json'
 
 default_args = {
     'owner': 'airflow',
@@ -25,7 +25,7 @@ default_args = {
 
 
 def fetch_api_data(ti: TaskInstance) -> None:
-    url = "https://jsonplaceholder.typicode.com/todos/1"
+    url = "http://www.geoplugin.net/json.gp"
     logging.info(f"🔍 Запрос данных с {url}")
 
     try:
