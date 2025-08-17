@@ -13,10 +13,11 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW_UID: "50000"
-    AIRFLOW__WEBSERVER__SECRET_KEY: '9f8b2d74e3c61f7a1d5b2c0e4a6f9b7c3d2e1f0a8b7c6d5e4f3a2b1c0d9e8f7a'  # <-- здесь поставь свою секретную строку
+    AIRFLOW__WEBSERVER__SECRET_KEY: '9f8b2d74e3c61f7a1d5b2c0e4a6f9b7c3d2e1f0a8b7c6d5e4f3a2b1c0d9e8f7a'
   volumes:
     - ./dags:/opt/airflow/dags
-    - ./scripts:/opt/airflow/scripts   # для скриптов создания пользователя
+    - ./scripts:/opt/airflow/scripts
+    - ./libs:/opt/libs  # для драйвера PostgreSQL
 
 services:
   postgres:
@@ -25,6 +26,8 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
+    ports:
+      - "5433:5432" # проброс порта для локального подключения
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
