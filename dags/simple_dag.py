@@ -6,6 +6,7 @@ from datetime import timedelta
 import logging
 import json
 import requests
+import os
 from io import BytesIO
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -14,8 +15,10 @@ from botocore.exceptions import BotoCoreError, ClientError
 # Имя подключения, настроенного в Airflow Admin > Connections
 AIRFLOW_CONN_ID = 'minio_default'
 
-BUCKET_NAME = 'dev'
+# Получаем конфигурацию из переменных окружения
+BUCKET_NAME = os.getenv('MINIO_BUCKET', 'dev')
 OBJECT_KEY = 'data/temperature.json'
+API_URL = os.getenv('TEMPERATURE_API_URL', 'https://api.data.gov.sg/v1/environment/air-temperature')
 
 default_args = {
     'owner': 'airflow',
@@ -25,11 +28,10 @@ default_args = {
 
 
 def fetch_api_data(ti: TaskInstance) -> None:
-    url = "https://api.data.gov.sg/v1/environment/air-temperature"
-    logging.info(f"🔍 Запрос данных с {url}")
+    logging.info(f"🔍 Запрос данных с {API_URL}")
 
     try:
-        response = requests.get(url)
+        response = requests.get(API_URL)
         response.raise_for_status()
         data = response.json()
         logging.info("✅ Данные получены")
