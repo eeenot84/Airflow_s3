@@ -3,3 +3,18 @@ apache-airflow-providers-amazon>=8.0.0
 apache-airflow-providers-http
 boto3
 requests
+
+# Advanced Python libraries for Data Engineering
+pandas>=2.0.0
+numpy>=1.24.0
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+aiohttp>=3.8.0
+aiofiles>=23.0.0
+pydantic>=2.0.0
+sqlalchemy>=2.0.0
+great-expectations>=0.18.0
+loguru>=0.7.0
+typer>=0.9.0
+python-dotenv>=1.0.0
+psycopg2-binary>=2.9.0
