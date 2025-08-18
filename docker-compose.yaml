@@ -6,30 +6,41 @@ x-airflow-common:
   image: my-airflow:latest
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres/${POSTGRES_DB}
     AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: UTC
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__WEBSERVER__AUTHENTICATE: "True"
     AIRFLOW__WEBSERVER__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
     AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth"
-    AIRFLOW_UID: "50000"
-    AIRFLOW__WEBSERVER__SECRET_KEY: '9f8b2d74e3c61f7a1d5b2c0e4a6f9b7c3d2e1f0a8b7c6d5e4f3a2b1c0d9e8f7a'
+    AIRFLOW_UID: ${AIRFLOW_UID}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
+    # MinIO connection variables
+    MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    MINIO_BUCKET: ${MINIO_BUCKET}
+    # API configuration
+    TEMPERATURE_API_URL: ${TEMPERATURE_API_URL}
   volumes:
     - ./dags:/opt/airflow/dags
     - ./scripts:/opt/airflow/scripts
     - ./libs:/opt/libs  # для драйвера PostgreSQL
+  env_file:
+    - .env
 
 services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432" # проброс порта для локального подключения
+      - "${POSTGRES_PORT}:5432" # проброс порта для локального подключения
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
 
   airflow-webserver:
     <<: *airflow-common
@@ -39,7 +50,7 @@ services:
       - postgres
     command: bash -c "\
       airflow db init && \
-      airflow users create --username airflow --firstname Rinat --lastname Mubinov --role Admin --email rinat@example.com --password airflow123 || true && \
+      airflow users create --username ${AIRFLOW_ADMIN_USERNAME} --firstname Admin --lastname User --role Admin --email ${AIRFLOW_ADMIN_EMAIL} --password ${AIRFLOW_ADMIN_PASSWORD} || true && \
       airflow webserver"
 
   airflow-scheduler:
@@ -54,13 +65,15 @@ services:
     container_name: minio
     command: server --console-address ":9001" /data
     environment:
-      MINIO_ROOT_USER: Rinat
-      MINIO_ROOT_PASSWORD: 8241882418Rinat
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
       - ./minio_data:/data
+    env_file:
+      - .env
 
 volumes:
   postgres_data:

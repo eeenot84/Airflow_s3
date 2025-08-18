@@ -2,17 +2,22 @@
 import json
 import boto3
 import logging
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, to_timestamp
 
 # -------------------------------
-# 1️⃣ Настройка MinIO
+# 1️⃣ Настройка MinIO из переменных окружения
 # -------------------------------
-minio_endpoint = "http://localhost:9000"
-access_key = "Rinat"
-secret_key = "8241882418Rinat"
-bucket_name = "dev"
+minio_endpoint = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+access_key = os.getenv("MINIO_ROOT_USER")
+secret_key = os.getenv("MINIO_ROOT_PASSWORD")
+bucket_name = os.getenv("MINIO_BUCKET", "dev")
 object_key = "data/temperature.json"
+
+# Проверяем наличие обязательных переменных
+if not access_key or not secret_key:
+    raise ValueError("❌ MinIO credentials not found in environment variables. Set MINIO_ROOT_USER and MINIO_ROOT_PASSWORD.")
 
 s3 = boto3.client(
     's3',
@@ -30,7 +35,7 @@ data = json.loads(obj['Body'].read())
 # -------------------------------
 # 3️⃣ Инициализация PySpark с драйвером PostgreSQL
 # -------------------------------
-jdbc_driver_path = "/Users/rinatmubinov/PycharmProjects/PythonProject6/libs/postgresql-42.7.7.jar"
+jdbc_driver_path = os.getenv("JDBC_DRIVER_PATH", "/opt/libs/postgresql-42.7.7.jar")
 spark = SparkSession.builder \
     .appName("MinIO_to_Postgres") \
     .config("spark.jars", jdbc_driver_path) \
@@ -60,12 +65,22 @@ readings_df = readings_df.withColumn(
 )
 
 # -------------------------------
-# 5️⃣ Подключение к PostgreSQL
+# 5️⃣ Подключение к PostgreSQL из переменных окружения
 # -------------------------------
-jdbc_url = "jdbc:postgresql://localhost:5433/airflow"  # локальный порт PostgreSQL
+postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+postgres_port = os.getenv("POSTGRES_PORT", "5433")
+postgres_db = os.getenv("POSTGRES_DB", "airflow")
+postgres_user = os.getenv("POSTGRES_USER")
+postgres_password = os.getenv("POSTGRES_PASSWORD")
+
+# Проверяем наличие обязательных переменных
+if not postgres_user or not postgres_password:
+    raise ValueError("❌ PostgreSQL credentials not found in environment variables. Set POSTGRES_USER and POSTGRES_PASSWORD.")
+
+jdbc_url = f"jdbc:postgresql://{postgres_host}:{postgres_port}/{postgres_db}"
 jdbc_props = {
-    "user": "airflow",
-    "password": "airflow",
+    "user": postgres_user,
+    "password": postgres_password,
     "driver": "org.postgresql.Driver"
 }
 
