@@ -82,30 +82,81 @@ docker-compose ps
 
 ## 🔄 Workflow
 
+### ETL Pipeline (температурные данные)
 1. **Fetch Data Task**: Получает данные о температуре из Singapore API
 2. **Upload to MinIO Task**: Сохраняет данные в MinIO бакет
 3. **Spark Processing**: Обрабатывает данные и загружает в PostgreSQL
+
+### Photo Animation Pipeline (анимация фотографий) 🎬
+1. **List Photos**: Находит фотографии в MinIO (папка `photos/input/`)
+2. **Download Photo**: Загружает фотографию из MinIO
+3. **Animate Photo**: Создает анимированную версию (эффект Кена Бернса)
+4. **Upload Animated**: Сохраняет анимацию обратно в MinIO (папка `photos/animated/`)
 
 ## 🛠️ Разработка
 
 ### Структура проекта
 ```
 .
-├── dags/                   # Airflow DAGs
-├── libs/                   # Библиотеки (JDBC драйверы)
-├── minio_data/            # Данные MinIO (игнорируется Git)
-├── docker-compose.yaml    # Docker конфигурация
-├── Dockerfile            # Airflow образ
-├── requirements.txt      # Python зависимости
-├── spark_jobs.py        # Spark задания
-├── .env.example         # Шаблон переменных окружения
-└── .gitignore          # Игнорируемые файлы
+├── dags/                      # Airflow DAGs
+│   ├── simple_dag.py         # DAG для температурных данных
+│   └── photo_animation_dag.py # DAG для анимации фотографий
+├── libs/                      # Библиотеки (JDBC драйверы)
+├── minio_data/               # Данные MinIO (игнорируется Git)
+├── docker-compose.yaml       # Docker конфигурация
+├── Dockerfile                # Airflow образ
+├── requirements.txt          # Python зависимости
+├── spark_jobs.py            # Spark задания
+├── photo_animator.py        # Модуль для анимации фотографий
+├── .env.example             # Шаблон переменных окружения
+└── .gitignore               # Игнорируемые файлы
 ```
 
 ### Запуск Spark задания
 ```bash
 # Из контейнера Airflow
 docker-compose exec airflow-webserver python /opt/airflow/spark_jobs.py
+```
+
+### Использование функции анимации фотографий 🎬
+
+#### 1. Загрузка фотографий в MinIO
+```bash
+# Используйте MinIO Console или CLI для загрузки фотографий
+# Путь в MinIO: photos/input/your_photo.jpg
+```
+
+#### 2. Запуск DAG в Airflow
+- Откройте Airflow Web UI (http://localhost:8080)
+- Найдите DAG `photo_animation`
+- Включите и запустите DAG
+
+#### 3. Результат
+Анимированные фотографии будут сохранены в MinIO по пути: `photos/animated/your_photo_animated.gif`
+
+#### Доступные эффекты анимации:
+- **ken_burns** (по умолчанию) - комбинация zoom и pan
+- **zoom** - эффект приближения
+- **pan** - панорамирование (движение камеры)
+- **fade** - эффект затухания/появления
+
+#### Использование модуля напрямую:
+```python
+from photo_animator import PhotoAnimator
+
+# Создаем аниматор
+animator = PhotoAnimator(output_format='gif')
+
+# Создаем анимацию
+animator.animate_photo(
+    image_path='path/to/photo.jpg',
+    output_path='path/to/output.gif',
+    effect='ken_burns',
+    frames=60,
+    zoom_factor=1.3,
+    pan_direction='right',
+    duration=3.0
+)
 ```
 
 ## 🐛 Отладка

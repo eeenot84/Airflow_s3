@@ -6,6 +6,9 @@ RUN python3 -m pip install --upgrade pip
 # Копируем файл зависимостей
 COPY requirements.txt /
 
+# Копируем модуль анимации фото
+COPY photo_animator.py /opt/airflow/
+
 # Устанавливаем переменные для указания версии Airflow и Python
 ARG AIRFLOW_VERSION=2.9.1
 ARG PYTHON_VERSION=3.9

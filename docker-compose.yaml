@@ -25,6 +25,7 @@ x-airflow-common:
     - ./dags:/opt/airflow/dags
     - ./scripts:/opt/airflow/scripts
     - ./libs:/opt/libs  # для драйвера PostgreSQL
+    - ./photo_animator.py:/opt/airflow/photo_animator.py  # модуль анимации фото
   env_file:
     - .env
 
