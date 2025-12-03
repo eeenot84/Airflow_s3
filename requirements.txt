@@ -18,3 +18,9 @@ loguru>=0.7.0
 typer>=0.9.0
 python-dotenv>=1.0.0
 psycopg2-binary>=2.9.0
+
+# Для анимации фото и создания видео
+Pillow>=10.0.0
+moviepy>=1.0.3
+gtts>=2.5.0
+imageio-ffmpeg>=0.4.9
