@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from PIL import Image, ImageEnhance, ImageFilter
 from moviepy.editor import ImageClip, AudioFileClip, CompositeVideoClip, concatenate_videoclips
-from moviepy.video.fx import resize, fadein, fadeout
+from moviepy.video.fx.all import fadein, fadeout
 from gtts import gTTS
 import tempfile
 
